@@ -8,5 +8,4 @@ edition = "2018"
 
 [dependencies]
 ndarray = "0.13"
-ndarray-rand = "0.11.0"
-ndarray-linalg = { version = "0.12", features = ["openblas"] }
+rand = "0.7.3"

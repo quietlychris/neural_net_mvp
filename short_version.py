@@ -13,6 +13,6 @@ for iteration in xrange(10000):
     synaptic_weights += dot(training_set_inputs.T, (training_set_outputs - output) * output * (1 - output))
 #print(synaptic_weights)
 # print 1 / (1 + exp(-(dot(array([0, 0, 0]), synaptic_weights))))
-result = 1 / (1 + exp(-(dot(array([1, 0, 0]), synaptic_weights))))
+result = 1 / (1 + exp(-(dot(array([0, 1, .8]), synaptic_weights))))
 print("result:")
 print(result)

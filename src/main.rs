@@ -1,58 +1,64 @@
-use ndarray::prelude::*;
-use ndarray_linalg::types::Scalar;
-use ndarray_linalg::*;
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
+extern crate ndarray as nd;
 
-use std::f32;
-
-//    let mut twos = Array::from_elem((4, 1), 1f32).map(|x| *x + 1.0);
-//    let mut es = Array::from_elem((4, 1), 1f32).map(|x| *&x.exp());
-//    println!("twos: {}",twos);
-//    println!("e's: {}",es);
+use nd::{prelude::*, Array};
+use rand::{prelude::*, SeedableRng};
 
 fn main() {
-    let training_set_inputs = array![
-        [0.0f32, 0.0, 1.0],
+    let (n, m) = (4, 3);
+    let learnrate = 0.1;
+    let mut rng = thread_rng();
+
+    let mut input = Array::<f32, _>::zeros((n, m));
+    input = array![
+        [0.0, 0.0, 1.0],
         [1.0, 1.0, 1.0],
         [1.0, 0.0, 1.0],
-        [0.0, 1.0, 1.0]
+        [0.0, 1.0, 1.0f32]
     ];
-    let training_set_outputs = array![[0.0, 1.0, 1.0, 0.0]].reversed_axes(); // .reversed_axes() to transponse
-    //println!("training_set_outputs:\n{}", training_set_outputs);
-    let mut synaptic_weights =
-        Array2::<f32>::random((1, 3), Uniform::new(0., 1.)).map(|x| (2.0 * x) - 1.0);
-    //println!("synaptic_weights:\n{}\n", synaptic_weights);
-    let mut ones = Array::from_elem((4, 1), 1f32);
+    input.mapv_inplace(|x| sigmoid(x));
+    //println!("input:\n{}",input);
 
-    let mut output = ones.clone()
-        / ((ones.clone() + (training_set_inputs.dot(&synaptic_weights.t())).map(|x| *x * -1.0))
-            .map(|x| *&x.exp()));
-    //println!("output_zero:\n{}\n", output);
+    let mut output = Array::<f32, _>::ones((n, 1));
+    output[[0, 0]] = 0f32;
+    output[[3, 0]] = 0f32;
+    //println!("output:\n{}",output);
 
-    for iteration in 0..10000 {
-        output = ones.clone()
-            / ((ones.clone()
-                + (training_set_inputs.dot(&synaptic_weights.t())).map(|x| *x * -1.0))
-            .map(|x| *&x.exp()));
-        //println!("output_{}:\n{}\n", iteration, output);
+    let mut weights = Array::<f32, Ix2>::zeros((m, 1));
+    for x in 0..m {
+        weights[[x, 0]] = rng.gen_range(0.0, 1.0);
+    }
+    //println!("weights:\n{}",weights);
 
-        let dp_feeder = (&training_set_outputs - &output) * &output * (&output.map(|x| 1.0 - x));
-        //println!("dp_feeder:\n{}\n", dp_feeder);
-        let new_weights = (training_set_inputs.clone().reversed_axes()).dot(&dp_feeder);
+    for _ in 0..10000 {
+        let output_hat = input.dot(&weights).map(|x| sigmoid(*x));
+        //println!("output_hat:\n{}",output_hat);
 
-        *&mut synaptic_weights = &synaptic_weights + &new_weights.reversed_axes();
-        //println!("synaptic_weights #{}:\n{}\n", iteration, synaptic_weights);
+        let err_term =
+            (&output - &output_hat) * &output_hat * (&output_hat.map(|x| 1.0 - x)) / learnrate;
+        //println!("err_term:\n{}",err_term);
+
+        let delta_w = input.t().dot(&err_term);
+        //println!("delta_w:\n{}",delta_w);
+
+        weights = weights + delta_w;
+        //println!("weights:\n{}",weights);
+
+        let error = (output.clone() - output_hat.clone())
+            .mapv(|x| x.powf(2.0))
+            .sum()
+            / (2.0 * n as f32);
+        //println!("error: {}",error);
     }
 
-    let mut result_ones = Array::from_elem((3, 1), 1f32);
-    let test_vec = array![[1.0, 1.0, 0.80]]; // Checking this array to see if it fits our training set
-    let result = result_ones.clone()
-        / (result_ones
-            + (test_vec
-                .dot(&synaptic_weights.reversed_axes())
-                .map(|x| *x * -1.0))
-            .map(|x| *&x.exp()));
+    let test_vec = array![[1.0, 1.0, 0.8]];
+    let result = sigmoid(test_vec.dot(&weights)[[0, 0]]);
+    println!("result: {}", result);
+}
 
-    print!("result for {}:\n{}\n", &test_vec, result[[0, 0]]);
+fn sigmoid(x: f32) -> f32 {
+    1.0 / (1.0 + (-x).exp())
+}
+
+fn sigmoid_prime(x: f32) -> f32 {
+    sigmoid(x) * (1.0 - sigmoid(x))
 }
